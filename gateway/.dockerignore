@@ -1,0 +1,11 @@
+.env
+.env.*
+node_modules
+npm-debug.log*
+test
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*firebase-admin*.json

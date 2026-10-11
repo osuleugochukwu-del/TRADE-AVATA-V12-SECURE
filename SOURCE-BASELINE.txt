@@ -1,0 +1,20 @@
+TRADE AVATA V12 R2 SOURCE BASELINE
+==================================
+PRIMARY WORKING BASELINE:
+  User-supplied package: Trade-Avata-JESUS-JESUS-V12-TA-SCRIPT-FULL(1).zip
+  This V12 package is the authoritative model corrected by V12 R2.
+
+PRESERVATION REFERENCE:
+  Repository: osuleugochukwu-del/JESUS-JESUS-1
+  Branch: main
+  Reference head inspected during V12 R2 vetting: a65ffa6634b2fe905a87cae14210e00777a62355
+
+RULE:
+  V12 R2 corrects the uploaded V12 baseline. JESUS-JESUS-1 is used only to
+  verify that approved existing Trade Avata functionality has not been lost.
+  V12 R2 does not revert the product back to the older repository baseline.
+
+INDICATOR ECOSYSTEM:
+  Trade Avata native only: TA Script (.tas) and Trade Avata indicator package
+  (.taind). cTrader remains a broker/live-market-data integration; external
+  platform indicator source formats are not part of the Indicator Portal.

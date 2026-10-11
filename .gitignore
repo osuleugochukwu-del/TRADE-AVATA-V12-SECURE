@@ -1,0 +1,19 @@
+# Trade Avata secrets and generated/private material
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+node_modules/
+**/node_modules/
+*.pem
+*.key
+*.p12
+*.pfx
+*service-account*.json
+*firebase-admin*.json
+*credentials*.json
+*.map
+.DS_Store
+Thumbs.db

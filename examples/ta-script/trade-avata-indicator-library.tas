@@ -1,0 +1,23 @@
+ta_script 1.0
+revision R3
+indicator "Trade Avata Native Indicator Demo"
+
+let env = envelopes(close, 20, 0.10, "sma")
+let ichi = ichimoku(9, 26, 52, 26)
+let sar = psar(0.02, 0.20)
+let zz = zigzag(12, 0, 3)
+let dm = demarker(14)
+let rv = rvi(10)
+let all = alligator(13, 8, 8, 5, 5, 3)
+let mp = market_profile(100, 24, 0.70)
+
+plot env.upper as "Envelope Upper"
+plot env.lower as "Envelope Lower"
+plot ichi.tenkan as "Tenkan"
+plot ichi.kijun as "Kijun"
+plot sar as "Parabolic SAR"
+plot zz.line as "ZigZag"
+plot dm as "DeMarker"
+plot rv.line as "RVI"
+plot all.jaw as "Alligator Jaw"
+plot mp.poc as "Market Profile POC"

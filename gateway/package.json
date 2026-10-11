@@ -1,0 +1,19 @@
+{
+  "name": "trade-avata-ctrader-gateway",
+  "private": true,
+  "version": "1.0.1",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "bootstrap:owner": "node scripts/bootstrap-owner.js",
+    "seed:private-indicator": "node scripts/seed-private-indicator.js"
+  },
+  "dependencies": {
+    "firebase-admin": "13.5.0",
+    "ws": "8.18.3"
+  }
+}

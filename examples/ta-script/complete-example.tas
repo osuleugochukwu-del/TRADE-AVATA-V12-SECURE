@@ -1,0 +1,34 @@
+ta_script 1.0
+script "EMA Pullback Complete"
+
+# Inputs
+input fast = 20
+input slow = 50
+input rsiLength = 14
+input qty = 1
+
+# Indicators
+let fastEma = ema(close, fast)
+let slowEma = ema(close, slow)
+let strength = rsi(close, rsiLength)
+
+plot fastEma as "Fast EMA"
+plot slowEma as "Slow EMA"
+plot strength as "RSI"
+
+# Signals and alerts
+signal "BUY" when crossover(fastEma, slowEma) and strength > 50
+signal "SELL" when crossunder(fastEma, slowEma) and strength < 50
+alert "Bullish EMA cross" when crossover(fastEma, slowEma)
+alert "Bearish EMA cross" when crossunder(fastEma, slowEma)
+
+# Strategy / backtest
+entry long "Long" when crossover(fastEma, slowEma)
+exit "Long" when crossunder(fastEma, slowEma)
+entry short "Short" when crossunder(fastEma, slowEma)
+exit "Short" when crossover(fastEma, slowEma)
+
+# Automation intents. They do NOT contact a broker unless the Trade Avata
+# permissioned broker adapter explicitly enables execution.
+order buy qty qty when crossover(fastEma, slowEma)
+order sell qty qty when crossunder(fastEma, slowEma)

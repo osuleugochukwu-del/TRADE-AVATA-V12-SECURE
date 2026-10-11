@@ -1,0 +1,14 @@
+/* Trade Avata V12 additive integration styles. Existing V11/V11.2 styling is preserved. */
+.ta-script-studio{min-width:min(860px,92vw)}
+.ta-script-editor{width:100%;min-height:360px;resize:vertical;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre;tab-size:2}
+.ta-script-status{margin:10px 0 0;padding:10px 12px;border:1px solid rgba(148,163,184,.2);border-radius:8px;background:rgba(3,10,18,.45);overflow:auto;font-size:12px}
+.ta-private-programs{margin:12px 0;padding:10px;border:1px solid rgba(98,214,255,.2);border-radius:10px;background:rgba(9,30,48,.25)}
+.ta-private-programs h4{margin:0 0 8px}
+.indicator-browser-head{gap:8px;flex-wrap:wrap}
+.ta-v12-running{margin-left:auto}
+.ta-device-sync-modal .ta-login-actions{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:780px){
+  .ta-script-studio{min-width:0;width:100%}
+  .ta-script-editor{min-height:46vh;font-size:12px}
+  .indicator-browser-head .secondary{padding-inline:10px}
+}

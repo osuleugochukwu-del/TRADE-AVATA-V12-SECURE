@@ -1,0 +1,68 @@
+TRADE AVATA V12 R2 FINAL TEST REPORT
+====================================
+Package version: 12.0.2
+TA Script: 1.0 R4
+Indicator ecosystem: Trade Avata native (.tas / .taind)
+
+FINAL AUTOMATED TESTS
+---------------------
+npm test
+158 passed
+0 failed
+
+PRESERVATION / LIVE-READY VERIFIER
+----------------------------------
+npm run verify
+PASS
+
+npm run verify:live-ready
+265 passed
+0 failed
+
+STRESS SUITES
+-------------
+npm run stress
+100,000 transition/Renko randomized scenarios passed
+
+npm run stress:native-v3
+100,000 native geometry/axis/Home/timeframe-anchor scenarios passed
+
+npm run stress:full-native
+100,000 full-native geometry/transition cases plus construction integrity passed
+
+npm run stress:parity
+1,000 full-native parity constructions passed
+
+SYNTAX
+------
+83 JavaScript/MJS files recursively syntax checked with node --check
+PASS
+
+INDICATOR CERTIFICATION INCLUDED
+--------------------------------
+- deterministic SMA/EMA/WMA vectors
+- Wilder ATR vector
+- RSI flat neutral edge case
+- Stochastic 9/3/9 direction + flat neutral edge case
+- ADX zero-TR neutral edge case
+- DeMarker flat neutral edge case
+- Ichimoku forward projection
+- Alligator forward projection
+- Fractal confirmation/display anchoring
+- ZigZag pivot anchoring/alternation
+- session VWAP boundary
+- Volume Profile naming
+- all built-in indicator finite/range invariants across deterministic OHLCV families
+
+SECURITY CERTIFICATION INCLUDED
+-------------------------------
+- Indicator Portal accepts only .tas / .taind
+- protected private source is not returned by metadata endpoint
+- protected private TA Script executes on the secure gateway
+- browser consumes calculated private results only
+- public package contains no Gold Hunter proprietary TA Script
+- TA ID remains public lookup only; backend identity/entitlement is authoritative
+
+RESULT
+------
+PASS — V12 R2 is the corrected repository baseline for the next Trade Avata deployment.

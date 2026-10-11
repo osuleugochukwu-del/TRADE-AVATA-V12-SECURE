@@ -1,0 +1,42 @@
+ta_script 1.0
+revision R3
+indicator "Trade Avata Market Structure"
+overlay true
+calculate on bar_close
+
+input swing_left = 3
+input swing_right = 3
+input regime_lookback = 50
+
+let s = market_structure(swing_left, swing_right)
+let r = market_regime(swing_left, swing_right, regime_lookback, 0.25)
+let z = structure_zones(swing_left, swing_right, 14, 0.25)
+let channel = trend_channel(swing_left, swing_right)
+let range_box = range_bounds(50)
+let candles = candle_patterns()
+let double_top = pattern("double_top", swing_left, swing_right, 0.03, 160)
+let double_bottom = pattern("double_bottom", swing_left, swing_right, 0.03, 160)
+
+# Confirmed structure labels. The marker is drawn at the historical pivot,
+# while the runtime retains the later confirmation bar for truthful backtesting.
+marker "HH" at s.swing_high anchor s.swing_high_index when s.hh
+marker "LH" at s.swing_high anchor s.swing_high_index when s.lh
+marker "HL" at s.swing_low anchor s.swing_low_index when s.hl
+marker "LL" at s.swing_low anchor s.swing_low_index when s.ll
+
+plot z.support as "Support"
+plot z.resistance as "Resistance"
+plot channel.upper as "Structure Channel Upper"
+plot channel.lower as "Structure Channel Lower"
+plot range_box.mid as "Range Mid"
+
+signal "Bullish BOS" when s.bos_bull
+signal "Bearish BOS" when s.bos_bear
+signal "Bullish CHoCH" when s.choch_bull
+signal "Bearish CHoCH" when s.choch_bear
+signal "Range" when r.range
+
+signal "Double Top" when double_top.confirmed
+signal "Double Bottom" when double_bottom.confirmed
+signal "Bullish Engulfing" when candles.bullishEngulfing
+signal "Bearish Engulfing" when candles.bearishEngulfing
