@@ -69,7 +69,7 @@ if(exists('src/live-ready-upgrade.js')){
 
 if(exists('src/firebase-auth-adapter.js')){
   const x=text('src/firebase-auth-adapter.js');
-  for(const term of ['trade-avata','signInWithEmailAndPassword','createUserWithEmailAndPassword','sendPasswordResetEmail','signInWithPopup','browserLocalPersistence','onAuthStateChanged','getIdToken','/api/account/bootstrap',"profileRole===\'owner\'?\'free\':profileRole"])ok(`Firebase auth: ${term}`,x.includes(term));
+  for(const term of ['trade-avata','signInWithEmailAndPassword','createUserWithEmailAndPassword','sendPasswordResetEmail','signInWithPopup','browserLocalPersistence','onAuthStateChanged','getIdToken','/api/account/bootstrap',"profileRole==='owner'?'free':profileRole"])ok(`Firebase auth: ${term}`,x.includes(term));
   ok('no password storage',!x.includes('localStorage.setItem')&&!x.includes('sessionStorage.setItem'));
 }
 
@@ -87,10 +87,11 @@ if(exists('src/ctrader-feed-adapter.js')){
 
 if(exists('src/live-ready-config.js')){
   const x=text('src/live-ready-config.js');
-  ok('single public backend/gateway plug exists',x.includes("TRADE_AVATA_BACKEND_HTTP=''")&&x.includes('gatewayHttp:TRADE_AVATA_BACKEND_HTTP')&&x.includes('apiHttp:TRADE_AVATA_BACKEND_HTTP'));
+  const legacySinglePlug=x.includes("TRADE_AVATA_BACKEND_HTTP=''")&&x.includes('gatewayHttp:TRADE_AVATA_BACKEND_HTTP')&&x.includes('apiHttp:TRADE_AVATA_BACKEND_HTTP');
+  const isolatedOracleMarketPlug=x.includes("TRADE_AVATA_BACKEND_HTTP='https://market.tradeavata.com'")&&x.includes('gatewayHttp:TRADE_AVATA_BACKEND_HTTP')&&x.includes('apiHttp:TRADE_AVATA_BACKEND_HTTP')&&x.includes("gatewayWs:'wss://market.tradeavata.com/ws/market'")&&x.includes('Isolated market-feed test environment');
+  ok('single public backend/gateway plug exists',legacySinglePlug||isolatedOracleMarketPlug,isolatedOracleMarketPlug?'isolated Oracle market gateway':'legacy configurable gateway');
   ok('config has no secret values',!/(clientSecret|accessToken|refreshToken)\s*:\s*['\"][^'\"]+/.test(x));
 }
-
 
 if(exists('ctrader-callback.html')&&exists('src/ctrader-oauth-callback.js')){
   const h=text('ctrader-callback.html'),x=text('src/ctrader-oauth-callback.js');
@@ -133,7 +134,6 @@ if(exists('sw.js')){
   const x=text('sw.js');ok('service worker cache bumped',x.includes('v11-2-live-ready-r3')&&x.includes('v12-ta-script-native-ready-r2'));for(const f of ['firebase-auth-adapter.js','indicator-cloud-adapter.js','live-ready-config.js','market-feed-adapter.js','ctrader-feed-adapter.js','ctrader-oauth-callback.js','live-ready-upgrade.js','live-ready-upgrade.css','ctrader-callback.html','account-sync-adapter.js','private-indicator-adapter.js','v12-integration.js','v12-integration.css','ta-script/runtime.js'])ok(`service worker includes ${f}`,x.includes(f));
   ok('service worker ignores cross-origin auth/feed requests',x.includes("if(url.origin!==self.location.origin)return"));
 }
-
 
 const syntaxFiles=[
   'src/firebase-auth-adapter.js','src/indicator-cloud-adapter.js','src/live-ready-config.js','src/market-feed-adapter.js','src/ctrader-feed-adapter.js','src/ctrader-oauth-callback.js','src/live-ready-upgrade.js',
