@@ -1,69 +1,17 @@
 /* Trade Avata genuine market-data engine.
  * Pure transforms only. No synthetic/demo prices are ever generated here.
- * The gateway remains authoritative; this layer normalizes, merges and derives
- * supported custom intervals/chart constructions from genuine received bars.
  */
-
-export function normalizeMarketBar(b){
-  if(!b)return null;
-  let time=Number(b.time??b.ts??b.timestamp??b.openTime);
-  if(time>1e12)time=Math.floor(time/1000);
-  if(time>1e10)time=Math.floor(time/1000);
-  const out={time,open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume??b.tickVolume??0)};
-  return Number.isFinite(time)&&['open','high','low','close'].every(k=>Number.isFinite(out[k]))?out:null;
-}
-
-export function mergeMarketBars(...sets){
-  const map=new Map();
-  for(const set of sets)for(const raw of set||[]){const b=normalizeMarketBar(raw);if(b)map.set(b.time,b);}
-  return [...map.values()].sort((a,b)=>a.time-b.time);
-}
-
-export function periodSeconds(value){
-  const s=String(value||'').trim().toLowerCase();
-  let m=/^(\d+)s$/.exec(s);if(m)return +m[1];
-  m=/^(\d+)m$/.exec(s);if(m)return +m[1]*60;
-  m=/^(\d+)h$/.exec(s);if(m)return +m[1]*3600;
-  m=/^(\d+)d$/.exec(s);if(m)return +m[1]*86400;
-  m=/^(\d+)w$/.exec(s);if(m)return +m[1]*604800;
-  return null;
-}
-
-export function aggregateTimeBars(source,period){
-  const step=periodSeconds(period);if(!step)return mergeMarketBars(source);
-  const bars=mergeMarketBars(source),out=[];let cur=null;
-  for(const b of bars){
-    const time=Math.floor(b.time/step)*step;
-    if(!cur||cur.time!==time){cur={time,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.volume||0};out.push(cur);}
-    else{cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.volume+=(b.volume||0);}
-  }
-  return out;
-}
-
-export function heikinAshiBars(source){
-  const bars=mergeMarketBars(source),out=[];let prev=null;
-  for(const b of bars){const close=(b.open+b.high+b.low+b.close)/4,open=prev?(prev.open+prev.close)/2:(b.open+b.close)/2,x={...b,open,close,high:Math.max(b.high,open,close),low:Math.min(b.low,open,close)};out.push(x);prev=x;}
-  return out;
-}
-
+export function normalizeMarketBar(b){if(!b)return null;let time=Number(b.time??b.ts??b.timestamp??b.openTime);if(time>1e12)time=Math.floor(time/1000);if(time>1e10)time=Math.floor(time/1000);const out={time,open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume??b.tickVolume??0)};return Number.isFinite(time)&&['open','high','low','close'].every(k=>Number.isFinite(out[k]))?out:null;}
+export function mergeMarketBars(...sets){const map=new Map();for(const set of sets)for(const raw of set||[]){const b=normalizeMarketBar(raw);if(b)map.set(b.time,b);}return [...map.values()].sort((a,b)=>a.time-b.time);}
+export function periodSpec(value){const s=String(value?.value??value??'').trim().toLowerCase();let m=/^(\d+)(s|m|h|d|w)$/.exec(s);if(m){const n=+m[1],u=m[2],mul={s:1,m:60,h:3600,d:86400,w:604800}[u];return{kind:'fixed',value:s,seconds:n*mul};}m=/^(\d+)(mo|mon|month|months)$/.exec(s);if(m)return{kind:'month',value:s,months:+m[1]};if(['1mo','mo','month','monthly','mn1'].includes(s))return{kind:'month',value:s,months:1};return null;}
+export function periodSeconds(value){const p=periodSpec(value);return p?.kind==='fixed'?p.seconds:null;}
+function monthBucket(time,months){const d=new Date(time*1000),serial=d.getUTCFullYear()*12+d.getUTCMonth(),bucket=Math.floor(serial/months)*months,y=Math.floor(bucket/12),m=bucket%12;return Date.UTC(y,m,1)/1000;}
+export function aggregateTimeBars(source,period){const spec=periodSpec(period),bars=mergeMarketBars(source);if(!spec)return bars;const out=[];let cur=null;for(const b of bars){const time=spec.kind==='month'?monthBucket(b.time,spec.months):Math.floor(b.time/spec.seconds)*spec.seconds;if(!cur||cur.time!==time){cur={time,open:b.open,high:b.high,low:b.low,close:b.close,volume:b.volume||0};out.push(cur);}else{cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.volume+=b.volume||0;}}return out;}
+export function heikinAshiBars(source){const bars=mergeMarketBars(source),out=[];let prev=null;for(const b of bars){const close=(b.open+b.high+b.low+b.close)/4,open=prev?(prev.open+prev.close)/2:(b.open+b.close)/2,x={...b,open,close,high:Math.max(b.high,open,close),low:Math.min(b.low,open,close)};out.push(x);prev=x;}return out;}
 export function linePoints(source){return mergeMarketBars(source).map(b=>({time:b.time,value:b.close}));}
-
-export function renkoBars(source,brickSize){
-  const bars=mergeMarketBars(source),size=Math.abs(Number(brickSize));if(!bars.length||!Number.isFinite(size)||size<=0)return [];
-  const out=[];let anchor=bars[0].open;
-  for(const b of bars){let guard=0;while(Math.abs(b.close-anchor)>=size&&guard++<10000){const dir=b.close>anchor?1:-1,open=anchor,close=open+dir*size;out.push({time:b.time,open,high:Math.max(open,close),low:Math.min(open,close),close,volume:b.volume||0});anchor=close;}}
-  return out;
-}
-
-export function rangeBars(source,rangeSize){
-  const bars=mergeMarketBars(source),size=Math.abs(Number(rangeSize));if(!bars.length||!Number.isFinite(size)||size<=0)return [];
-  const out=[];let cur={time:bars[0].time,open:bars[0].open,high:bars[0].open,low:bars[0].open,close:bars[0].open,volume:0};
-  for(const b of bars){cur.high=Math.max(cur.high,b.high);cur.low=Math.min(cur.low,b.low);cur.close=b.close;cur.volume+=(b.volume||0);if(cur.high-cur.low>=size){out.push(cur);cur={time:b.time,open:cur.close,high:cur.close,low:cur.close,close:cur.close,volume:0};}}
-  if(cur.volume||!out.length)out.push(cur);return out;
-}
-
-export function historyDiagnostics(symbol,period,bars,extra={}){
-  const x=mergeMarketBars(bars),times=x.map(b=>b.time);return{symbol:String(symbol||'').toUpperCase(),period:String(period?.value??period??''),loaded:x.length,oldest:times[0]??null,newest:times.at(-1)??null,duplicates:Math.max(0,(bars?.length||0)-new Set(times).size),source:'cTrader',synthetic:false,...extra};
-}
-
-window.__TRADE_AVATA_REAL_MARKET_DATA={normalizeMarketBar,mergeMarketBars,periodSeconds,aggregateTimeBars,heikinAshiBars,linePoints,renkoBars,rangeBars,historyDiagnostics};
+export const areaPoints=linePoints;
+export function renkoBars(source,brickSize){const bars=mergeMarketBars(source),size=Math.abs(Number(brickSize));if(!bars.length||!Number.isFinite(size)||size<=0)return[];const out=[];let anchor=bars[0].open,seq=0;for(const b of bars){let guard=0;while(Math.abs(b.close-anchor)>=size&&guard++<10000){const dir=b.close>anchor?1:-1,open=anchor,close=open+dir*size;out.push({time:b.time+seq++/1000,open,high:Math.max(open,close),low:Math.min(open,close),close,volume:b.volume||0});anchor=close;}}return out;}
+export function rangeBars(source,rangeSize){const bars=mergeMarketBars(source),size=Math.abs(Number(rangeSize));if(!bars.length||!Number.isFinite(size)||size<=0)return[];const out=[];let open=bars[0].open,high=open,low=open,volume=0,seq=0;for(const b of bars){high=Math.max(high,b.high);low=Math.min(low,b.low);volume+=b.volume||0;let guard=0;while(high-low>=size&&guard++<10000){const up=b.close>=open,close=up?open+size:open-size;out.push({time:b.time+seq++/1000,open,high:Math.max(open,close),low:Math.min(open,close),close,volume});open=close;high=Math.max(open,b.high);low=Math.min(open,b.low);volume=0;}}return out;}
+export function deriveChartData(source,{period=null,type='candles',brickSize,rangeSize}={}){const bars=period?aggregateTimeBars(source,period):mergeMarketBars(source),t=String(type||'candles').toLowerCase();if(t.includes('heikin'))return heikinAshiBars(bars);if(t.includes('renko'))return renkoBars(bars,brickSize);if(t.includes('range'))return rangeBars(bars,rangeSize);if(t==='line'||t==='area'||t.includes('baseline'))return linePoints(bars);return bars;}
+export function historyDiagnostics(symbol,period,bars,extra={}){const raw=(bars||[]).map(normalizeMarketBar).filter(Boolean),x=mergeMarketBars(raw),times=x.map(b=>b.time);return{symbol:String(symbol||'').toUpperCase(),period:String(period?.value??period??''),loaded:x.length,oldest:times[0]??null,newest:times.at(-1)??null,duplicates:Math.max(0,raw.length-x.length),source:'cTrader',synthetic:false,...extra};}
+window.__TRADE_AVATA_REAL_MARKET_DATA={normalizeMarketBar,mergeMarketBars,periodSpec,periodSeconds,aggregateTimeBars,heikinAshiBars,linePoints,areaPoints,renkoBars,rangeBars,deriveChartData,historyDiagnostics};
