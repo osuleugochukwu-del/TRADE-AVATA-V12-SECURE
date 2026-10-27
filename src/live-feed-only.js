@@ -1,14 +1,36 @@
 /* Trade Avata live-feed-only guard.
- * When the secure cTrader gateway is configured, synthetic/demo market bars
- * must never enter a chart pane. The pane starts empty and waits for genuine
- * gateway history/live bars. This deliberately applies to every construction:
- * unsupported constructions remain empty rather than silently showing fake data.
+ * A configured cTrader deployment must never render synthetic/demo market data.
+ * Every pane starts empty and remains empty until genuine gateway history/live
+ * bars arrive. Unsupported periods/constructions stay blank rather than falling
+ * back to generated prices.
  */
 import {ChartPane} from './chart-pane.js';
 
 function liveGatewayConfigured(){
   const cfg=window.TRADE_AVATA_CTRADER_CONFIG||{};
   return cfg.enabled===true||!!cfg.gatewayWs||!!cfg.gatewayHttp;
+}
+
+function clearPane(pane){
+  pane.rawBars=[];
+  pane.periodBars=[];
+  pane.displayBars=[];
+  pane.barIndex=new Map();
+  pane.replayIndex=null;
+  pane.__taLiveHistoryLoaded=false;
+
+  try{
+    pane.series?.setData?.([]);
+  }catch{}
+
+  try{
+    for(const meta of pane.indicatorSeries||[])meta.series?.setData?.([]);
+  }catch{}
+
+  try{
+    pane.refreshHeader?.();
+    pane.renderOverlays?.(true);
+  }catch{}
 }
 
 if(!ChartPane.prototype.__taSyntheticLoadData){
@@ -19,35 +41,28 @@ if(!ChartPane.prototype.__taSyntheticLoadData){
       return this.__taSyntheticLoadData({home});
     }
 
-    // Never generate or display local/demo candles in a live deployment.
-    this.rawBars=[];
-    this.periodBars=[];
-    this.displayBars=[];
-    this.barIndex=new Map();
-    this.replayIndex=null;
-    this.__taLiveHistoryLoaded=false;
+    // Hard live-only rule: no generated bars, no stale demo series, no fake EMA.
+    clearPane(this);
 
-    // Clear any previously rendered data synchronously, before the browser paints.
-    try{
-      if(this.series){
-        if(typeof this.series.setData==='function')this.series.setData([]);
-        else this.applyMainSeriesData?.();
-      }else{
-        this.rebuildSeries?.({preserveVisibleRange:false});
-      }
-    }catch{}
+    // Keep the chart in AUTO while it waits for genuine history. Do not call
+    // the original loadData because that path invokes generateBars().
+    this.manualMode=false;
+    this.manualRange=null;
+    try{ this.clearManualProvider?.(); }catch{}
+    try{ this.updateModeChip?.(); }catch{}
 
-    try{
-      for(const meta of this.indicatorSeries||[])meta.series?.setData?.([]);
-    }catch{}
-
-    this.setAutoMode?.(false);
-    this.refreshHeader?.();
-    this.renderOverlays?.(true);
-
-    // live-ready-upgrade binds the pane immediately after this call and the
-    // cTrader provider requests genuine history + subscribes to live bars.
     return undefined;
+  };
+
+  // hardHome/reset must not resurrect generated history while live mode is on.
+  const originalHardHome=ChartPane.prototype.hardHome;
+  ChartPane.prototype.hardHome=function(){
+    if(!liveGatewayConfigured())return originalHardHome.call(this);
+    if(!this.displayBars?.length){
+      clearPane(this);
+      return false;
+    }
+    return this.homeView?.()||false;
   };
 }
 
