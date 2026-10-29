@@ -48,8 +48,15 @@ These SECURE changes are candidates for deliberate later porting to R5 after mob
 - No fabricated history.
 - User mobile screenshots/manual tests are acceptance authority.
 
+## Chart construction isolation and candle restoration
+- `edde0489d1ffacba5b28d9fd7027d61a2cf670a1`: ordinary Candles and Heikin-Ashi are returned to the original native candle renderer. The SECURE continuous/heavier wick and body override no longer touches normal candles; Renko keeps only its isolated narrow-brick renderer correction.
+- `6c898dbda7ad7e58c9cdefc298809527b184d624`: adds `src/chart-construction-isolation.js`. A change of timeframe, period construction or chart type is treated as a hard data boundary: old transformed bars and the old feed subscription are cleared before the requested construction is rebound.
+- `83a827e32e1d520486e21f7290ce69cc58373204`: activates chart-construction isolation in SECURE.
+- Isolation contract: time Candles, Heikin-Ashi, Renko Pips, Renko Time, Range Pips, Line, Area and Bars must not reuse another construction's transformed bars. Each requested construction must refill from its genuine broker/feed path.
+- Acceptance sequence: Candles → Heikin → Candles; Candles → Renko Pips → Candles; Candles → Renko Time → Candles; Candles → Range → Candles; Renko → Heikin → Candles; Range → Renko → Candles, including 1s/5s/15s/30s/1m/5m where applicable.
+
 ## Native chart polish
-SECURE includes wick, narrower Renko body, responsive price-axis density, calendar hierarchy/separators and timestamp-first drawing projection. Activation: `0122a844e0e47dd79b1be8c771619934070c8645`.
+SECURE retains narrower Renko body, responsive price-axis density, calendar hierarchy/separators and timestamp-first drawing projection. Ordinary candle wick/body rendering has been restored to the original native renderer by `edde0489d1ffacba5b28d9fd7027d61a2cf670a1`; the prior heavy wick/body override is no longer applied to normal candles.
 
 ## R5 promotion rule
 - R5 stays read-only until SECURE acceptance is complete and the user explicitly authorizes the port.
@@ -60,6 +67,7 @@ SECURE includes wick, narrower Renko body, responsive price-axis density, calend
 
 ## Still requiring acceptance/diagnosis
 - Mobile test of `7de16459a0a64337978c3c948ae6771e2cdc07a3` for RT 5s/RT 1m/Renko Pips noise and history.
+- Mobile test of restored native Candles and construction isolation (`edde0489...`, `6c898db...`, `83a827e...`).
 - Indicator phone performance and prepend integrity.
 - Calendar/drawing mobile acceptance.
 - Permanent live reconnect root-cause diagnosis and recovery tests.
