@@ -32,13 +32,13 @@ test('construction resolution keeps Renko and Range out of Heiken layering',()=>
   ));
 });
 
-test('Renko Time history scales with the selected interval',()=>{
+test('Renko Time initial history stays lightweight while choosing an appropriate base interval',()=>{
   const short=historyPlanForPeriod({mode:'renko-time',value:'15s'});
   const hour=historyPlanForPeriod({mode:'renko-time',value:'1h'});
   assert.equal(short.baseTimeframe,'1s');
   assert.equal(hour.baseTimeframe,'1m');
-  assert.ok(hour.count>=20000);
-  assert.ok(short.count>=6000);
+  assert.ok(short.count>=500&&short.count<=2000);
+  assert.ok(hour.count>=500&&hour.count<=2000);
 });
 
 test('Home is a hard chart refresh path and cancels stale transition frames',()=>{
