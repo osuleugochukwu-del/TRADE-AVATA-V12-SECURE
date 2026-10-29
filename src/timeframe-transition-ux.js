@@ -26,10 +26,10 @@ function begin(symbol,period){
  const key=`${String(symbol||'').toUpperCase()}|${periodKey(period)}`;
  const old=pending.get(key);if(old){clearTimeout(old.slowTimer);clearTimeout(old.timeoutTimer);}
  const node=ensureOverlay(pane);if(!node)return;
- setCopy(node,`Loading ${label(period)} candles…`);
+ setCopy(node,`Loading ${label(period)}…`);
  node.classList.remove('ta-timeframe-waiting','ta-timeframe-slow');node.classList.add('show');pane.root.classList.add('ta-timeframe-switching');
- const slowTimer=setTimeout(()=>{if(node.classList.contains('show')){node.classList.add('ta-timeframe-slow');setCopy(node,`Loading ${label(period)} candles…`,`Still preparing genuine market history`);}},1800);
- const timeoutTimer=setTimeout(()=>{if(node.classList.contains('show'))setCopy(node,`Still loading ${label(period)}…`,`Live chart remains available while market history arrives`);},8000);
+ const slowTimer=setTimeout(()=>{if(node.classList.contains('show')){node.classList.add('ta-timeframe-slow');setCopy(node,`Loading ${label(period)}…`,`Preparing genuine market history`);}},1800);
+ const timeoutTimer=setTimeout(()=>{if(node.classList.contains('show'))setCopy(node,`Still loading ${label(period)}…`);},8000);
  pending.set(key,{pane,node,slowTimer,timeoutTimer,started:performance.now()});
 }
 function finish(symbol,period){
@@ -43,7 +43,20 @@ function connectionState(e){
 }
 
 const originalSubscribe=marketFeed.subscribe.bind(marketFeed);
-marketFeed.subscribe=function(opts={}){begin(opts.symbol,opts.period);return originalSubscribe(opts);};
+marketFeed.subscribe=function(opts={}){
+ begin(opts.symbol,opts.period);
+ const symbol=opts.symbol,period=opts.period;
+ const onHistory=opts.onHistory,onBar=opts.onBar;
+ /* Derived periods consume a different source period internally (for example
+    Renko 1m consumes genuine 1s bars), so the hub-level history event carries
+    the source period rather than the requested period. Close the loader from
+    the actual requested subscription callback as soon as usable data arrives. */
+ return originalSubscribe({
+  ...opts,
+  onHistory:payload=>{try{onHistory?.(payload);}finally{const bars=payload?.bars||payload?.data;if(Array.isArray(bars)&&bars.length)finish(symbol,period);}},
+  onBar:payload=>{try{onBar?.(payload);}finally{if(payload?.bar||payload?.open!=null)finish(symbol,period);}}
+ });
+};
 marketFeed.addEventListener('history',e=>finish(e.detail?.symbol,e.detail?.period));
 marketFeed.addEventListener('bar',e=>finish(e.detail?.symbol,e.detail?.period));
 marketFeed.addEventListener('status',connectionState);
