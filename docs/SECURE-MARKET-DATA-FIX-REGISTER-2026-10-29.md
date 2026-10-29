@@ -50,11 +50,32 @@ Purpose: preserve the exact fixes and acceptance work performed in `TRADE-AVATA-
 - Progressive initial-load commit: `f92a933cce37e1ed6866c5afdd500776b855e4ac`.
 - Historical paging/viewport commit: `60999b7993517c6dabc5b582cad209c6e6c74870`.
 
+## Native chart polish correction — 2026-10-29
+Implemented in additive `src/chart-polish-fix.js` and loaded only by SECURE:
+- Ordinary candle wick is rendered as one continuous high-to-low physical-pixel-aligned stroke before the body. No split upper/lower wick geometry is introduced.
+- Wick strength is kept crisp on high-DPI/mobile displays without changing OHLC values.
+- Renko body width is reduced from near-full-slot square geometry to a narrower candle-like brick. Renko price construction/reversal logic is unchanged.
+- Right price-axis target density is responsive to available main-pane height, with a bounded maximum to avoid label crowding.
+- Bottom axis gains explicit calendar hierarchy at real boundaries: intraday time remains native; day boundaries receive date labels; month boundaries receive full month names such as February/March; year boundaries receive year labels.
+- Day/month/year boundaries receive progressively clearer vertical separators while candles remain visually dominant.
+- Drawing projection is timestamp-first. Stored logical index is only a fallback, so a drawing made on 30s can project to the same market time/price when switching to 15s/1m/etc. Symbol/pane ownership remains intact.
+- Activation commit: `0122a844e0e47dd79b1be8c771619934070c8645`.
+
+## Indicator/render performance diagnosis
+Observed sequence: candles render first and feel smooth; synchronous indicator calculation/application follows and can make the phone chart feel heavy or visibly settle/re-shape.
+Required final rule:
+- candle/native interaction owns the critical frame;
+- indicator calculation must not repeatedly rebuild the viewport or main candle geometry;
+- live updates should update only changed indicator state where mathematically possible;
+- historical prepend should calculate only required added history/state rather than repeatedly rebuilding thousands of unchanged points;
+- indicator work should yield/defer around active pointer interaction;
+- EMA is the first visible symptom, but the solution must apply to the indicator pipeline generally (RSI/MACD/private indicators included).
+Existing `dense-pan-fix.js` already frame-caches native geometry and coalesces dense drag paints, but synchronous `computeIndicator()` in `ChartPane.rebuildSeries()` still requires a dedicated calculation-pipeline refactor. Do not mark this complete until measured on phone with indicators enabled.
+
 ## UI issues identified / remaining
 - Timeframe transition loader should remain compact: three-dot pulse + concise `Loading <tf>…`; remove tiny explanatory secondary sentence that extends the pill unnecessarily.
-- Bottom time axis needs context-aware date/day labels when crossing days, while retaining useful intraday times.
-- Right price scale is visually sparse and should gain responsive useful label density without overlap.
-- EMA/indicator integrity must be re-tested after history prepends; indicators must stay attached to the correct chronological candle series.
+- EMA/indicator integrity and performance must be re-tested after history prepends; indicators must stay attached to the correct chronological candle series and must not disturb viewport geometry.
+- Calendar/date/month/year axis and drawing timestamp projection are implemented in SECURE but still require browser/mobile acceptance testing before production promotion.
 
 ## Persistent browser-cache target
 Final design:
@@ -82,8 +103,10 @@ The 7-day startup backfill is a proof mechanism, not the desired permanent resta
 ## Remaining acceptance before production promotion
 - Compact loader UI.
 - IndexedDB persistent history cache.
-- Date-aware time axis.
-- Responsive price-axis labels.
+- Mobile/browser acceptance of crisp wick + narrow Renko geometry.
+- Mobile/browser acceptance of day/month/year hierarchy and separators.
+- Cross-timeframe drawing persistence test across 30s/15s/1m/5m and back.
+- Dedicated incremental/deferred indicator calculation pipeline + phone performance test.
 - EMA/indicator prepend integrity.
 - Permanent live reconnect root-cause diagnosis + end-to-end test.
 - Background/foreground automatic wake test.
