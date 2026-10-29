@@ -13,47 +13,33 @@ function installNativePolish(){
   p.__taChartPolish20261029=true;
 
   /*
-   * Candles: one continuous high->low wick, aligned to the backing-store pixel
-   * grid. The wick is deliberately a little stronger than one physical pixel
-   * on high-DPI screens so it does not feather into two faint threads.
+   * IMPORTANT: ordinary Candles and Heikin-Ashi now use the original native
+   * candle renderer again. The earlier SECURE wick/body polish made normal
+   * candles visually heavier and changed their feel. Keep that renderer intact.
    *
-   * Renko: bricks remain unmistakably Renko but use a candle-like narrow body
-   * instead of consuming almost the entire logical slot as a square block.
+   * Only Renko constructions retain the narrow brick geometry correction here,
+   * so Renko styling cannot change normal candle wick/body rendering.
    */
+  const nativeDrawCandles=p._drawCandles;
   p._drawCandles=function(ctx,s,rect,start,end){
     const o=s.optionsData||{};
     const renko=['renko-pips','renko-time'].includes(o.constructionMode);
+    if(!renko)return nativeDrawCandles.call(this,ctx,s,rect,start,end);
+
     const r=this.visibleRange;if(!r)return;
     const spacing=rect.width/Math.max(1,r.to-r.from);
     const hairX=this._hairX(),hairY=this._hairY();
-    let bodyW=renko
-      ?clamp(spacing*.52,Math.max(hairX,1.15),18)
-      :clamp(spacing*.70,hairX,24);
-    if(!renko&&spacing<1.15)bodyW=hairX;
+    const bodyW=clamp(spacing*.52,Math.max(hairX,1.15),18);
 
     for(let i=start;i<=Math.min(end,s.data.length-1);i++){
       const b=s.data[i];if(!b)continue;
       const rawX=this.timeScaleApi.logicalToCoordinate(i);
       if(!Number.isFinite(rawX)||rawX<-40||rawX>rect.right+40)continue;
-      const yo=this._priceToY(b.open,s.paneIndex),yc=this._priceToY(b.close,s.paneIndex),yh=this._priceToY(b.high,s.paneIndex),yl=this._priceToY(b.low,s.paneIndex);
-      if(![yo,yc,yh,yl].every(Number.isFinite))continue;
-      const x=this._snapX(rawX),up=Number(b.close)>=Number(b.open);
+      const yo=this._priceToY(b.open,s.paneIndex),yc=this._priceToY(b.close,s.paneIndex);
+      if(![yo,yc].every(Number.isFinite))continue;
+      const up=Number(b.close)>=Number(b.open);
       const fill=up?(o.upColor||'#00c7b1'):(o.downColor||'#ff4d57');
       const border=up?(o.borderUpColor||fill):(o.borderDownColor||fill);
-      const wick=up?(o.wickUpColor||fill):(o.wickDownColor||fill);
-
-      if(!renko&&o.wickVisible!==false&&!rgbaTransparent(wick)){
-        ctx.save();
-        ctx.strokeStyle=wick;
-        ctx.lineWidth=Math.max(hairX,Math.min(1,1.35*hairX));
-        ctx.lineCap='butt';
-        ctx.beginPath();
-        ctx.moveTo(x,this._snapY(yh));
-        ctx.lineTo(x,this._snapY(yl));
-        ctx.stroke();
-        ctx.restore();
-      }
-
       const top=this._snapY(Math.min(yo,yc)),bottom=this._snapY(Math.max(yo,yc));
       const height=this._snapHeight(Math.max(hairY,bottom-top));
       const width=this._snapWidth(bodyW),left=this._snapX(rawX-width/2);
@@ -161,8 +147,9 @@ installNativePolish();
 installDrawingTimeAnchors();
 
 window.__TRADE_AVATA_CHART_POLISH_20261029={
-  candleWicks:'continuous-crisp',
-  renkoGeometry:'narrow-candle-like',
+  candleWicks:'native-restored',
+  candleBodies:'native-restored',
+  renkoGeometry:'narrow-candle-like-isolated',
   calendarAxis:'day-month-year-hierarchy',
   drawingAnchors:'timestamp-first',
   priceAxis:'responsive-density'
