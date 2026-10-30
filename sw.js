@@ -1,4 +1,4 @@
-const CACHE='trade-avata-chart-v11-1-correction-v11-2-live-ready-r3-v12-ta-script-native-ready-r2-security-s1';
+const CACHE='trade-avata-chart-v11-1-correction-v11-2-live-ready-r3-v12-ta-script-native-ready-r2-security-s1-feeddiag-20261030';
 
 const LOCAL=[
   './',
@@ -18,14 +18,25 @@ const LOCAL=[
   './src/indicator-cloud-adapter.js',
   './src/live-ready-config.js',
   './src/market-feed-adapter.js',
+  './src/real-market-data.js',
   './src/ctrader-feed-adapter.js',
   './src/ctrader-oauth-callback.js',
+  './src/derived-period-feed.js',
+  './src/history-continuity.js',
+  './src/timeframe-transition-ux.js',
+  './src/mobile-resume.js',
+  './src/live-feed-only.js',
   './src/app.js',
   './src/master-recovery.js',
   './src/final-upgrade.js',
   './src/v11-correction.js',
   './src/live-ready-upgrade.js',
+  './src/market-status-sync-fix.js',
+  './src/feed-runtime-diagnostics.js',
   './src/dense-pan-fix.js',
+  './src/chart-polish-fix.js',
+  './src/chart-construction-isolation.js',
+  './src/indicator-performance-fix.js',
   './src/v12-integration.js',
 
   './src/ta-script/index.js',
