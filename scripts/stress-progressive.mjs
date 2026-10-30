@@ -6,7 +6,7 @@ const types=['Candles','Heikin-Ashi','Bars','Line','Area','Renko','Range'];
 const timeValues=['1s','5s','15s','30s','1m','5m','15m','1h'];
 const renkoTimes=['5s','15s','30s','1m','5m','15m','1h'];
 let seed=0x9e3779b9;
-const rnd=()=>{seed=(Math.imul(seed^seed>>>16,0x45d9f3b)>>>0);seed=(Math.imul(seed^seed>>>16,0x45d9f3b)>>>0;seed=(seed^seed>>>16)>>>0;return seed/4294967296;};
+const rnd=()=>{seed=(Math.imul(seed^seed>>>16,0x45d9f3b)>>>0);seed=(Math.imul(seed^seed>>>16,0x45d9f3b)>>>0);seed=(seed^seed>>>16)>>>0;return seed/4294967296;};
 const pick=a=>a[Math.floor(rnd()*a.length)];
 const fail=(i,msg)=>{throw new Error(`stress case ${i}: ${msg}`);};
 
