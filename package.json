@@ -8,7 +8,7 @@
     "test": "node --test tests/*.test.js gateway/test/*.test.js",
     "verify": "node scripts/verify.mjs",
     "verify:live-ready": "node scripts/verify-live-ready.mjs",
-    "stress": "node scripts/stress.mjs",
+    "stress": "node scripts/stress-progressive.mjs",
     "stress:native-v3": "node scripts/native-v3-stress.mjs",
     "stress:full-native": "node scripts/full-native-stress.mjs",
     "stress:parity": "node scripts/final-parity-stress.mjs",
