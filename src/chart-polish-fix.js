@@ -1,5 +1,9 @@
-/* Trade Avata SECURE chart polish — 2026-10-29.
- * Surgical native-renderer corrections only. No market data is created or altered.
+/* Trade Avata SECURE chart polish — movement-safe revision 2026-10-30.
+ * Keep useful non-render-loop corrections only.
+ * No market data is created or altered.
+ * IMPORTANT: do not wrap TradeAvataNativeChart.render() here. The former
+ * calendar hierarchy render wrapper was confirmed by manual phone testing to
+ * make chart movement heavy/stiff.
  */
 import {TradeAvataNativeChart} from './native-chart.js';
 import {ChartPane} from './chart-pane.js';
@@ -9,17 +13,11 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 function installNativePolish(){
   const p=TradeAvataNativeChart?.prototype;
-  if(!p||p.__taChartPolish20261029)return;
-  p.__taChartPolish20261029=true;
+  if(!p||p.__taChartPolish20261030)return;
+  p.__taChartPolish20261030=true;
 
-  /*
-   * IMPORTANT: ordinary Candles and Heikin-Ashi now use the original native
-   * candle renderer again. The earlier SECURE wick/body polish made normal
-   * candles visually heavier and changed their feel. Keep that renderer intact.
-   *
-   * Only Renko constructions retain the narrow brick geometry correction here,
-   * so Renko styling cannot change normal candle wick/body rendering.
-   */
+  /* Ordinary Candles and Heikin-Ashi stay on the original native renderer.
+   * Only Renko retains its isolated narrow-brick geometry correction. */
   const nativeDrawCandles=p._drawCandles;
   p._drawCandles=function(ctx,s,rect,start,end){
     const o=s.optionsData||{};
@@ -51,7 +49,7 @@ function installNativePolish(){
     }
   };
 
-  /* More useful responsive price labels without allowing collisions. */
+  /* Responsive price labels without a second render pass. */
   const axisTicks=p._axisTicks;
   p._axisTicks=function(paneIndex,target=8){
     if(paneIndex===0){
@@ -61,72 +59,14 @@ function installNativePolish(){
     }
     return axisTicks.call(this,paneIndex,target);
   };
-
-  /*
-   * Calendar hierarchy overlay. Intraday time labels remain native. At actual
-   * calendar boundaries we add date/month/year labels and vertical separators.
-   * Month names are intentionally full (February, March...) for unmistakable
-   * long-history orientation.
-   */
-  const render=p.render;
-  p.render=function(){
-    const result=render.call(this);
-    try{this._drawCalendarHierarchy?.(this.ctx);}catch(e){console.warn('Trade Avata calendar hierarchy',e);}
-    return result;
-  };
-
-  p._drawCalendarHierarchy=function(ctx){
-    const data=this._mainData?.()||[],vr=this.visibleRange,plot=this._plotRect?.();
-    if(!data.length||!vr||!plot)return;
-    const start=Math.max(1,Math.floor(vr.from)-1),end=Math.min(data.length-1,Math.ceil(vr.to)+1);
-    const tz=this.optionsData.timezone==='UTC+1 Lagos'?'Africa/Lagos':this.optionsData.timezone==='UTC'?'UTC':undefined;
-    const parts=sec=>{
-      const d=new Date(Number(sec)*1000);
-      const f=new Intl.DateTimeFormat('en-GB',{timeZone:tz,year:'numeric',month:'numeric',day:'numeric'}).formatToParts(d);
-      const get=t=>Number(f.find(x=>x.type===t)?.value||0);
-      return{y:get('year'),m:get('month'),d:get('day')};
-    };
-    const label=(sec,kind)=>{
-      const d=new Date(Number(sec)*1000),opts=kind==='year'?{year:'numeric'}:kind==='month'?{month:'long'}:{day:'numeric',month:'short'};
-      if(tz)opts.timeZone=tz;
-      return new Intl.DateTimeFormat('en-GB',opts).format(d);
-    };
-    ctx.save();ctx.textAlign='center';ctx.textBaseline='top';
-    let lastLabelX=-Infinity;
-    for(let i=start;i<=end;i++){
-      const a=parts(data[i-1]?.time),b=parts(data[i]?.time);
-      if(!a.y||!b.y)continue;
-      let kind=null;
-      if(a.y!==b.y)kind='year'; else if(a.m!==b.m)kind='month'; else if(a.d!==b.d)kind='day';
-      if(!kind)continue;
-      const x=this._snapX(this.timeScaleApi.logicalToCoordinate(i));
-      if(!Number.isFinite(x)||x<0||x>plot.right)continue;
-      ctx.beginPath();ctx.setLineDash(kind==='day'?[3,5]:[]);
-      ctx.strokeStyle=kind==='year'?'rgba(157,180,204,.62)':kind==='month'?'rgba(157,180,204,.48)':'rgba(140,160,180,.30)';
-      ctx.lineWidth=kind==='year'?1.5:kind==='month'?1.25:1;
-      ctx.moveTo(x,0);ctx.lineTo(x,plot.bottom);ctx.stroke();
-      if(x-lastLabelX<48&&kind==='day')continue;
-      const text=label(data[i].time,kind);
-      ctx.font=kind==='month'||kind==='year'?'700 9px Inter,system-ui,sans-serif':'600 9px Inter,system-ui,sans-serif';
-      const w=Math.max(34,ctx.measureText(text).width+8),lx=clamp(x-w/2,0,Math.max(0,plot.right-w));
-      ctx.fillStyle=this.optionsData.layout?.background?.color||'#111820';ctx.fillRect(lx,plot.bottom+2,w,18);
-      ctx.fillStyle=this.optionsData.layout?.textColor||'#9db4cc';ctx.fillText(text,lx+w/2,plot.bottom+6);
-      lastLabelX=x;
-    }
-    ctx.restore();
-  };
 }
 
 function installDrawingTimeAnchors(){
   const p=ChartPane?.prototype;
-  if(!p||p.__taDrawingTimeAnchors20261029)return;
-  p.__taDrawingTimeAnchors20261029=true;
+  if(!p||p.__taDrawingTimeAnchors20261030)return;
+  p.__taDrawingTimeAnchors20261030=true;
 
-  /*
-   * A drawing's timestamp is authoritative across timeframe changes. Logical
-   * index is only a same-timeframe convenience and must never relocate/hide a
-   * drawing when 30s becomes 15s, 1m, etc.
-   */
+  /* Timestamp is authoritative across timeframe changes. */
   p.xForPoint=function(point){
     if(point?.time!=null&&Number.isFinite(Number(point.time))){
       const x=this.xForTime(Number(point.time));
@@ -146,11 +86,13 @@ function installDrawingTimeAnchors(){
 installNativePolish();
 installDrawingTimeAnchors();
 
-window.__TRADE_AVATA_CHART_POLISH_20261029={
+window.__TRADE_AVATA_CHART_POLISH_20261030={
+  movementSafe:true,
+  renderWrapper:'removed-after-manual-stiffness-confirmation',
+  calendarAxis:'disabled-until-non-render-loop-implementation',
   candleWicks:'native-restored',
   candleBodies:'native-restored',
   renkoGeometry:'narrow-candle-like-isolated',
-  calendarAxis:'day-month-year-hierarchy',
   drawingAnchors:'timestamp-first',
   priceAxis:'responsive-density'
 };
