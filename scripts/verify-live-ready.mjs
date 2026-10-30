@@ -13,7 +13,7 @@ const sha256=p=>crypto.createHash('sha256').update(fs.readFileSync(path.join(roo
 const BASELINE_MANIFEST_SHA256='b32a6d77ceebf5e18bc06529c0a48102b20ec7440cbe4cfab6900cd295255f9b';
 if(exists('V11.1-SHA256.txt')){
   ok('current JESUS-JESUS baseline manifest identity',sha256('V11.1-SHA256.txt')===BASELINE_MANIFEST_SHA256,sha256('V11.1-SHA256.txt'));
-  const intentional=new Set(['index.html','sw.js','package.json','.github/workflows/deploy.yml','firestore.rules','gateway/package.json','gateway/server.js','src/chart-pane.js','src/indicators.js','src/indicator-security.js','src/final-upgrade.js','src/native-chart.js','src/live-ready-upgrade.js','scripts/verify.mjs']);
+  const intentional=new Set(['index.html','sw.js','package.json','.github/workflows/deploy.yml','firestore.rules','gateway/package.json','gateway/server.js','src/chart-pane.js','src/chart-transition.js','src/indicators.js','src/indicator-security.js','src/final-upgrade.js','src/native-chart.js','src/live-ready-upgrade.js','scripts/verify.mjs','tests/transition.test.js']);
   const rows=text('V11.1-SHA256.txt').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{const m=/^([a-f0-9]{64})\s+\.\/(.+)$/.exec(line);return m?{sha:m[1],p:m[2]}:null;}).filter(Boolean);
   let checked=0;for(const row of rows){if(intentional.has(row.p))continue;checked++;ok(`full baseline preserved ${row.p}`,exists(row.p)&&sha256(row.p)===row.sha,exists(row.p)?sha256(row.p):'missing');}
   ok('full baseline fingerprint coverage',checked>=75,`${checked} protected files checked; V12 intentional integration files are separately verified`);
