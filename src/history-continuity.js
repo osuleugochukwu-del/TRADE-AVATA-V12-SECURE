@@ -98,7 +98,7 @@ marketFeed.publishHistory=function(payload){
   const bars=remember(k,mergeMarketBars(existing,incoming)),prepended=older?bars.filter(b=>Number(b.time)<oldestExisting).length:0;
   s.loading=false;const gapTask=gapRecovery.get(k);if(gapTask?.pending){gapTask.pending=false;clearTimeout(gapTask.timeout);gapTask.timeout=null;}s.initialReady=s.initialReady||payload.direction==='initial'||payload.direction==null;s.hasMore=payload.hasMore!==false;s.cursor=payload.nextBefore??payload.cursor??bars[0]?.time??null;s.lastPageCount=incoming.length;s.lastMode=older?'prepend':'merge';s.lastSettledAt=performance.now();state.set(k,s);
   window.__TRADE_AVATA_HISTORY_DIAGNOSTICS=window.__TRADE_AVATA_HISTORY_DIAGNOSTICS||{};window.__TRADE_AVATA_HISTORY_DIAGNOSTICS[k]=historyDiagnostics(payload.symbol,payload.period,bars,{hasMore:s.hasMore,cursor:s.cursor,pageSize:s.lastPageSize||MIN_PAGE,lastPageCount:s.lastPageCount,lastMode:s.lastMode});
-  const result=original({...payload,bars,data:undefined,count:bars.length,prepend:older});if(older&&s.viewport)restoreViewport(pane,s.viewport,prepended);if(s.initialReady)scheduleGapRepair(k);return result;
+  const result=original({...payload,bars,data:undefined,count:bars.length,prepend:older});/* The pane now anchors its viewport to candle timestamps during history merges. */if(s.initialReady)scheduleGapRepair(k);return result;
 };
 
 function publishRestore(pane,bars,source){
