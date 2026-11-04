@@ -537,7 +537,7 @@ function scheduleIndicatorRefresh(pane,{closed=false,full=false}={}){
 function applyLiveHistory(pane,payload){
   const bars=(payload.bars||payload.data||[]).map(normalizeBar).filter(Boolean).sort((a,b)=>a.time-b.time);if(!bars.length)return;
   pane.periodBars=bars;pane.rawBars=bars;pane.displayBars=pane.chartType==='Heikin-Ashi'?heikinAshi(bars):bars.slice();pane.barIndex=new Map(pane.displayBars.map((b,i)=>[Number(b.time),i]));
-  pane.rebuildSeries({preserveVisibleRange:false});pane.setAutoMode?.(false);pane.refreshHeader?.();pane.renderOverlays?.(true);
+  pane.rebuildSeries({preserveVisibleRange:!!pane.__taLiveHistoryLoaded});pane.setAutoMode?.(false);pane.refreshHeader?.();pane.renderOverlays?.(true);
   if(!pane.__taLiveHistoryLoaded){pane.__taLiveHistoryLoaded=true;pane.homeView?.();}
 }
 function liveHeikinBar(raw,previous=null){
