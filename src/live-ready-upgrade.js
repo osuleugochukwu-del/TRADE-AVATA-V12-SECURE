@@ -536,8 +536,22 @@ function scheduleIndicatorRefresh(pane,{closed=false,full=false}={}){
 
 function applyLiveHistory(pane,payload){
   const bars=(payload.bars||payload.data||[]).map(normalizeBar).filter(Boolean).sort((a,b)=>a.time-b.time);if(!bars.length)return;
+  const previous=pane.displayBars||[],scale=pane.chart?.timeScale?.();
+  const viewport=pane.__taLiveHistoryLoaded?scale?.getVisibleLogicalRange?.():null;
+  // Logical coordinates shift when older candles are inserted. Anchor the visible
+  // range to the same genuine candle timestamp instead of resetting after a drag.
+  const validViewport=viewport&&Number.isFinite(viewport.from)&&Number.isFinite(viewport.to)&&previous.length;
+  const anchorIndex=validViewport?Math.max(0,Math.min(previous.length-1,Math.floor(viewport.from))):0;
+  const anchorTime=validViewport?Number(previous[anchorIndex]?.time):null;
   pane.periodBars=bars;pane.rawBars=bars;pane.displayBars=pane.chartType==='Heikin-Ashi'?heikinAshi(bars):bars.slice();pane.barIndex=new Map(pane.displayBars.map((b,i)=>[Number(b.time),i]));
   pane.rebuildSeries({preserveVisibleRange:!!pane.__taLiveHistoryLoaded});pane.setAutoMode?.(false);pane.refreshHeader?.();pane.renderOverlays?.(true);
+  if(validViewport&&Number.isFinite(anchorTime)){
+    const newIndex=pane.barIndex.get(anchorTime);
+    if(Number.isFinite(newIndex)&&newIndex!==anchorIndex){
+      const shift=newIndex-anchorIndex;
+      try{scale?.setVisibleLogicalRange?.({from:viewport.from+shift,to:viewport.to+shift});}catch{}
+    }
+  }
   if(!pane.__taLiveHistoryLoaded){pane.__taLiveHistoryLoaded=true;pane.homeView?.();}
 }
 function liveHeikinBar(raw,previous=null){
