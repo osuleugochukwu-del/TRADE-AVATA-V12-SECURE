@@ -19,10 +19,11 @@ const gapRecovery=new Map();
 const GAP_REPAIR_MAX_REQUESTS=12,GAP_REPAIR_DELAY_MS=1200,GAP_REPAIR_MIN_SECONDS=120;
 function secondsPeriod(period){const v=String(period?.value??period??'').toLowerCase(),m=/^(1|5|15|30)s$/.exec(v);return m?Number(m[1]):null;}
 function selectMissingInterval(bars,tf,attempted){
-  // Only repair gaps within a trading session. Never backfill market closures.
+  // Ask the server about long gaps too: an apparent multi-hour/day gap can be
+  // missing historical pages. The server supplies only real stored candles.
   for(let i=bars.length-1;i>0;i--){
     const left=Number(bars[i-1].time),right=Number(bars[i].time),gap=right-left;
-    if(gap<Math.max(GAP_REPAIR_MIN_SECONDS,tf*4)||gap>6*3600)continue;
+    if(gap<Math.max(GAP_REPAIR_MIN_SECONDS,tf*4)||gap>72*3600)continue;
     const id=`${left}:${right}`;
     if(!attempted.has(id))return {left,right,id};
   }
