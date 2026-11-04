@@ -15,6 +15,39 @@ import {normalizeMarketBar,mergeMarketBars,historyDiagnostics} from './real-mark
 const MIN_PAGE=250,MAX_PAGE=500,MIN_INITIAL_BARS=24,SESSION_CACHE_MAX=10000;
 const DB_NAME='trade-avata-genuine-history',DB_VERSION=1,STORE='ranges';
 const state=new Map(),cache=new Map();
+const gapRecovery=new Map();
+const GAP_REPAIR_MAX_REQUESTS=12,GAP_REPAIR_DELAY_MS=1200,GAP_REPAIR_MIN_SECONDS=120;
+function secondsPeriod(period){const v=String(period?.value??period??'').toLowerCase(),m=/^(1|5|15|30)s$/.exec(v);return m?Number(m[1]):null;}
+function selectMissingInterval(bars,tf,attempted){
+  // Only repair gaps within a trading session. Never backfill market closures.
+  for(let i=bars.length-1;i>0;i--){
+    const left=Number(bars[i-1].time),right=Number(bars[i].time),gap=right-left;
+    if(gap<Math.max(GAP_REPAIR_MIN_SECONDS,tf*4)||gap>6*3600)continue;
+    const id=`${left}:${right}`;
+    if(!attempted.has(id))return {left,right,id};
+  }
+  return null;
+}
+function scheduleGapRepair(k,delay=GAP_REPAIR_DELAY_MS){
+  const tf=secondsPeriod(k.split(':').at(-1));if(!tf)return;
+  const g=gapRecovery.get(k)||{attempted:new Set(),sent:0,pending:false,timer:null};
+  gapRecovery.set(k,g);
+  if(g.timer||g.pending||g.sent>=GAP_REPAIR_MAX_REQUESTS)return;
+  g.timer=setTimeout(()=>{
+    g.timer=null;
+    if(g.pending||g.sent>=GAP_REPAIR_MAX_REQUESTS||document.hidden)return;
+    const pane=paneFor(k),bars=restore(k);
+    if(!pane||bars.length<MIN_INITIAL_BARS)return;
+    const gap=selectMissingInterval(bars,tf,g.attempted);
+    if(!gap)return;
+    g.attempted.add(gap.id);g.pending=true;g.sent++;
+    // A page before the right edge can recover missing buckets without fake prices.
+    const sent=requestOlder(pane,pane.period||{mode:'time',value:pane.timeframe},gap.right,MAX_PAGE);
+    if(!sent){g.pending=false;return;}
+    g.timeout=setTimeout(()=>{g.pending=false;g.timeout=null;scheduleGapRepair(k,5000);},8000);
+  },delay);
+}
+
 const key=(s,p)=>`${String(s||'').toUpperCase()}|${String(p?.mode||'time').toLowerCase()}:${String(p?.value??p??'1m').toLowerCase()}`;
 function appNow(){return window.__tradeAvataV111?.app||window.__tradeAvataFinalUpgrade?.app||window.__tradeAvata;}
 function paneFor(k){return(appNow()?.panes||[]).find(p=>key(p.symbol,p.period||{mode:'time',value:p.timeframe})===k);}
@@ -62,9 +95,9 @@ marketFeed.publishHistory=function(payload){
   const k=key(payload.symbol,payload.period),s=state.get(k)||{},pane=paneFor(k);const restored=restore(k);const existing=restored.length?restored:(pane?.periodBars||[]);
   const oldestExisting=Number(existing[0]?.time),newestIncoming=Number(incoming.at(-1)?.time);const older=!!existing.length&&(payload.direction==='older'||payload.prepend===true||newestIncoming<=oldestExisting);
   const bars=remember(k,mergeMarketBars(existing,incoming)),prepended=older?bars.filter(b=>Number(b.time)<oldestExisting).length:0;
-  s.loading=false;s.initialReady=s.initialReady||payload.direction==='initial'||payload.direction==null;s.hasMore=payload.hasMore!==false;s.cursor=payload.nextBefore??payload.cursor??bars[0]?.time??null;s.lastPageCount=incoming.length;s.lastMode=older?'prepend':'merge';s.lastSettledAt=performance.now();state.set(k,s);
+  s.loading=false;const gapTask=gapRecovery.get(k);if(gapTask?.pending){gapTask.pending=false;clearTimeout(gapTask.timeout);gapTask.timeout=null;}s.initialReady=s.initialReady||payload.direction==='initial'||payload.direction==null;s.hasMore=payload.hasMore!==false;s.cursor=payload.nextBefore??payload.cursor??bars[0]?.time??null;s.lastPageCount=incoming.length;s.lastMode=older?'prepend':'merge';s.lastSettledAt=performance.now();state.set(k,s);
   window.__TRADE_AVATA_HISTORY_DIAGNOSTICS=window.__TRADE_AVATA_HISTORY_DIAGNOSTICS||{};window.__TRADE_AVATA_HISTORY_DIAGNOSTICS[k]=historyDiagnostics(payload.symbol,payload.period,bars,{hasMore:s.hasMore,cursor:s.cursor,pageSize:s.lastPageSize||MIN_PAGE,lastPageCount:s.lastPageCount,lastMode:s.lastMode});
-  const result=original({...payload,bars,data:undefined,count:bars.length,prepend:older});if(older&&s.viewport)restoreViewport(pane,s.viewport,prepended);return result;
+  const result=original({...payload,bars,data:undefined,count:bars.length,prepend:older});if(older&&s.viewport)restoreViewport(pane,s.viewport,prepended);if(s.initialReady)scheduleGapRepair(k);return result;
 };
 
 function publishRestore(pane,bars,source){
@@ -78,7 +111,7 @@ function publishRestore(pane,bars,source){
   original({type:'history',symbol:pane.symbol,period,bars:merged,count:merged.length,direction:'restore',source,cached:true});
   return true;
 }
-function restorePane(pane){if(!pane)return false;const period=pane.period||{mode:'time',value:pane.timeframe},k=key(pane.symbol,period),saved=restore(k);if(saved.length)publishRestore(pane,saved,'browser-session-cache');void hydratePersistent(k).then(bars=>{if(bars.length)publishRestore(pane,bars,'browser-indexeddb-cache');});return !!saved.length;}
+function restorePane(pane){if(!pane)return false;const period=pane.period||{mode:'time',value:pane.timeframe},k=key(pane.symbol,period),saved=restore(k);if(saved.length){publishRestore(pane,saved,'browser-session-cache');scheduleGapRepair(k);}void hydratePersistent(k).then(bars=>{if(bars.length){publishRestore(pane,bars,'browser-indexeddb-cache');scheduleGapRepair(k);}});return !!saved.length;}
 function restoreAll(){const app=appNow();if(!app)return false;for(const pane of app.panes||[])restorePane(pane);return true;}
 function armHistoryGesture(pane){const p=pane.period||{mode:'time',value:pane.timeframe},pk=key(pane.symbol,p),s=state.get(pk)||{};s.gesture=(s.gesture||0)+1;s.gestureAt=performance.now();state.set(pk,s);}
 function installGestureArming(pane){const host=pane.chartHost||pane.root;if(!host||pane.__taHistoryGestureArming)return;pane.__taHistoryGestureArming=true;host.addEventListener('pointerdown',()=>armHistoryGesture(pane),{passive:true,capture:true});host.addEventListener('touchstart',()=>armHistoryGesture(pane),{passive:true,capture:true});host.addEventListener('wheel',()=>{const p=pane.period||{mode:'time',value:pane.timeframe},pk=key(pane.symbol,p),s=state.get(pk)||{},now=performance.now();if(now-(s.lastWheelArmAt||0)<700)return;s.lastWheelArmAt=now;state.set(pk,s);armHistoryGesture(pane);},{passive:true,capture:true});}
