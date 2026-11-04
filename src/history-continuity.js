@@ -49,7 +49,7 @@ async function hydratePersistent(k){
   try{
     const row=await new Promise(resolve=>{const tx=db.transaction(STORE,'readonly'),req=tx.objectStore(STORE).get(k);req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>resolve(null);});
     if(!row?.bars?.length)return restore(k);
-    const bars=mergeMarketBars(restore(k),row.bars);cache.set(k,bars);try{sessionStorage.setItem(`ta-history:${k}`,JSON.stringify(bars.slice(-SESSION_CACHE_MAX)));}catch{}return bars;
+    const bars=mergeMarketBars(row.bars,restore(k));cache.set(k,bars);try{sessionStorage.setItem(`ta-history:${k}`,JSON.stringify(bars.slice(-SESSION_CACHE_MAX)));}catch{}return bars;
   }catch{return restore(k);}
 }
 function captureViewport(pane){try{const r=pane?.chart?.timeScale?.().getVisibleLogicalRange?.();return r&&Number.isFinite(r.from)&&Number.isFinite(r.to)?{from:r.from,to:r.to}:null;}catch{return null;}}
@@ -61,13 +61,23 @@ marketFeed.publishHistory=function(payload){
   const incoming=(payload.bars||payload.data||[]).map(normalizeMarketBar).filter(Boolean);if(!incoming.length)return original(payload);
   const k=key(payload.symbol,payload.period),s=state.get(k)||{},pane=paneFor(k);const restored=restore(k);const existing=restored.length?restored:(pane?.periodBars||[]);
   const oldestExisting=Number(existing[0]?.time),newestIncoming=Number(incoming.at(-1)?.time);const older=!!existing.length&&(payload.direction==='older'||payload.prepend===true||newestIncoming<=oldestExisting);
-  const bars=remember(k,mergeMarketBars(existing,incoming)),prepended=older?Math.max(0,bars.length-existing.length):0;
+  const bars=remember(k,mergeMarketBars(existing,incoming)),prepended=older?bars.filter(b=>Number(b.time)<oldestExisting).length:0;
   s.loading=false;s.initialReady=s.initialReady||payload.direction==='initial'||payload.direction==null;s.hasMore=payload.hasMore!==false;s.cursor=payload.nextBefore??payload.cursor??bars[0]?.time??null;s.lastPageCount=incoming.length;s.lastMode=older?'prepend':'merge';s.lastSettledAt=performance.now();state.set(k,s);
   window.__TRADE_AVATA_HISTORY_DIAGNOSTICS=window.__TRADE_AVATA_HISTORY_DIAGNOSTICS||{};window.__TRADE_AVATA_HISTORY_DIAGNOSTICS[k]=historyDiagnostics(payload.symbol,payload.period,bars,{hasMore:s.hasMore,cursor:s.cursor,pageSize:s.lastPageSize||MIN_PAGE,lastPageCount:s.lastPageCount,lastMode:s.lastMode});
   const result=original({...payload,bars,data:undefined,count:bars.length,prepend:older});if(older&&s.viewport)restoreViewport(pane,s.viewport,prepended);return result;
 };
 
-function publishRestore(pane,bars,source){if(!pane||!bars?.length)return false;const period=pane.period||{mode:'time',value:pane.timeframe};original({type:'history',symbol:pane.symbol,period,bars,count:bars.length,direction:'restore',source,cached:true});return true;}
+function publishRestore(pane,bars,source){
+  if(!pane||!bars?.length)return false;
+  const active=Array.isArray(pane.periodBars)?pane.periodBars:[];
+  // Reconnect/foreground restores must not replace fresher live candles with stale cache.
+  // Keep all genuine cached history, preferring the active pane on matching timestamps.
+  const merged=mergeMarketBars(bars,active).slice(-SESSION_CACHE_MAX);
+  if(active.length&&merged.length===active.length&&Number(merged[0]?.time)===Number(active[0]?.time)&&Number(merged.at(-1)?.time)===Number(active.at(-1)?.time))return false;
+  const period=pane.period||{mode:'time',value:pane.timeframe};
+  original({type:'history',symbol:pane.symbol,period,bars:merged,count:merged.length,direction:'restore',source,cached:true});
+  return true;
+}
 function restorePane(pane){if(!pane)return false;const period=pane.period||{mode:'time',value:pane.timeframe},k=key(pane.symbol,period),saved=restore(k);if(saved.length)publishRestore(pane,saved,'browser-session-cache');void hydratePersistent(k).then(bars=>{if(bars.length)publishRestore(pane,bars,'browser-indexeddb-cache');});return !!saved.length;}
 function restoreAll(){const app=appNow();if(!app)return false;for(const pane of app.panes||[])restorePane(pane);return true;}
 function armHistoryGesture(pane){const p=pane.period||{mode:'time',value:pane.timeframe},pk=key(pane.symbol,p),s=state.get(pk)||{};s.gesture=(s.gesture||0)+1;s.gestureAt=performance.now();state.set(pk,s);}
