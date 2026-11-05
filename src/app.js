@@ -7,6 +7,7 @@ import {
   DEFAULT_PERIOD_FAVORITES, formatPrice, periodLabel, describePeriod, periodKey
 } from './data.js';
 import { ChartPane } from './chart-pane.js';
+import { parseCustomTimeInterval } from './custom-time-interval.js';
 import { $, $$, el, icon, toast, clamp, downloadBlob } from './utils.js';
 import { validateIndicatorSpec, safeIndicatorSummary } from './indicator-security.js';
 import { requestBrowserNotifications, showBrowserNotification, playAlertTone } from './alert-client.js';
@@ -554,7 +555,7 @@ class TradeAvataApp{
   closeMenu(){if(this.outsideMenuHandler){document.removeEventListener('pointerdown',this.outsideMenuHandler,true);this.outsideMenuHandler=null;}if(this.menu){this.menu.remove();this.menu=null;}}
   toggleFavoritePeriod(period){const key=periodKey(period),a=this.state.favoritePeriods||[];this.state.favoritePeriods=a.some(x=>periodKey(x)===key)?a.filter(x=>periodKey(x)!==key):[...a,cloneSerializable(period)];this.renderTopbar();this.save();}
   toggleFavoriteTf(tf){this.toggleFavoritePeriod({mode:'time',value:tf});}
-  openCustomInterval(){this.closeMenu();const v=prompt('Custom interval, for example 12s, 7m or 6h:','12s');if(!v)return;this.setPeriod({mode:'time',value:v});if(!this.state.favoritePeriods.some(x=>periodKey(x)===periodKey({mode:'time',value:v})))this.state.favoritePeriods.push({mode:'time',value:v});this.save();}
+  openCustomInterval(){this.closeMenu();const input=prompt('Custom interval (1–59s, or minutes/hours/days up to 30d). Examples: 12s, 7m, 6h, 2d:','12s');if(input===null)return;const parsed=parseCustomTimeInterval(input);if(!parsed.ok){toast(parsed.error,'error');return;}const period={mode:'time',value:parsed.value};this.setPeriod(period);if(!this.state.favoritePeriods.some(x=>periodKey(x)===periodKey(period)))this.state.favoritePeriods.push(period);this.save();}
   addIndicator(){this.addBuiltInIndicator('ema');}
   toggleAllIndicators(){const any=this.state.indicators.some(i=>i.visible!==false);this.state.indicators.forEach(i=>i.visible=!any);this.refreshAllCharts();this.renderTopbar();this.save();}
   toggleIndicatorVisibility(id,force=null){
