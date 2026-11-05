@@ -19,7 +19,21 @@ function syncFromHub(reason='status'){
     syncReason:reason
   };
   document.documentElement.dataset.marketLive=status==='live'?'true':'false';
-  try{app.renderTopbar?.();}catch{}
+  // Frequent genuine quotes/bars only update the badge in place. Rebuilding
+  // #topbar on every packet interrupts horizontal swipes on mobile devices.
+  const badge=document.querySelector('#topbar .live-pill');
+  if(badge){
+    const label=({live:'LIVE',connecting:'CONNECTING',reconnecting:'RECONNECTING',offline:'OFFLINE','not-configured':'FEED NOT CONFIGURED',error:'FEED ERROR'})[status]||status.toUpperCase();
+    badge.classList.toggle('ta-feed-live',status==='live');
+    badge.classList.toggle('ta-feed-wait',status!=='live');
+    let dot=badge.querySelector('.live-dot');
+    if(!dot){dot=document.createElement('span');dot.className='live-dot';badge.replaceChildren(dot);}
+    let textNode=[...badge.childNodes].find(node=>node.nodeType===3);
+    if(!textNode){textNode=document.createTextNode('');badge.append(textNode);}
+    if(textNode.textContent!==label)textNode.textContent=label;
+    badge.title=detail;
+    badge.onclick=()=>app.openMarketConnectionStatus?.();
+  }
   return true;
 }
 
