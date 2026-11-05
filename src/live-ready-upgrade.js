@@ -590,7 +590,7 @@ function patchFeedIntoCharts(app){
   for(const p of app.panes||[])bindPaneFeed(p);
 
   app.state.marketFeed=app.state.marketFeed||{provider:'ctrader',status:marketFeed.status,detail:marketFeed.statusDetail};
-  marketFeed.addEventListener('status',e=>{app.state.marketFeed={provider:e.detail.provider||'ctrader',status:e.detail.status,detail:e.detail.detail,lastChangedAt:nowIso()};if(e.detail.status==='live')document.documentElement.dataset.marketLive='true';else document.documentElement.dataset.marketLive='false';app.renderTopbar?.();});
+  marketFeed.addEventListener('status',e=>{app.state.marketFeed={provider:e.detail.provider||'ctrader',status:e.detail.status,detail:e.detail.detail,lastChangedAt:nowIso()};if(e.detail.status==='live')document.documentElement.dataset.marketLive='true';else document.documentElement.dataset.marketLive='false';patchMarketStatusButton(app);});
   marketFeed.addEventListener('account',e=>{const x=e.detail||{};app.state.connection.broker='cTrader';app.state.connection.account=x.account||x;app.state.connection.status=x.connected===false?'offline':'live';app.state.connection.feed='CTRADER';app.save?.();app.renderTopbar?.();app.renderRightPanel?.();});
   marketFeed.addEventListener('positions',e=>{app.positions=Array.isArray(e.detail?.positions)?e.detail.positions:Array.isArray(e.detail)?e.detail:[];app.renderBottom?.();});
   marketFeed.addEventListener('orders',e=>{app.orders=Array.isArray(e.detail?.orders)?e.detail.orders:Array.isArray(e.detail)?e.detail:[];app.renderBottom?.();});
