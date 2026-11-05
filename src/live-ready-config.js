@@ -13,7 +13,9 @@ const TRADE_AVATA_ALLOWED_ORIGINS=[
   'https://tradeavata.com',
   'https://www.tradeavata.com',
   'https://chart.tradeavata.com',
-  'https://osuleugochukwu-del.github.io'
+  'https://osuleugochukwu-del.github.io',
+  // Isolated SECURE interval-test project; never authorize arbitrary Vercel origins.
+  'https://trade-avata-secure-interval-preview.vercel.app'
 ];
 
 window.TRADE_AVATA_SECURITY_CONFIG={
