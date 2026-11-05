@@ -49,7 +49,13 @@ class TradeAvataApp{
   buildShell(){this.renderTopbar();this.renderLeftbar();this.renderRightRail();this.renderRightPanel();this.renderBottom();this.renderMobileDock();}
   startMarketIntelligenceTimer(){clearInterval(this.marketTimer);this.marketTimer=setInterval(()=>{const m=this.marketState();if(!m.autoRefresh)return;m.lastUpdated=new Date().toISOString();if(this.state.rightSidebarOpen&&['market','ai'].includes(this.state.rightPanel))this.renderRightPanel();},Math.max(15,Number(this.marketState().refreshSeconds)||60)*1000);}
   renderTopbar(){
-    const bar=$('#topbar');bar.innerHTML='';
+    const bar=$('#topbar');
+    // Mobile timeframes live in a horizontally scrollable child. Feed-status and
+    // workspace rerenders must not jump it back to the first timeframe.
+    const previousScroll=bar.querySelector('.topbar-scroll');
+    const left=previousScroll?.scrollLeft??this.__taTopbarScrollLeft??0;
+    const outerLeft=bar.scrollLeft;
+    bar.innerHTML='';
     const logo=this.state.brand?.logoDataUrl||'./public/brand/trade-avata-logo.svg';
     const brand=el('div',{class:'brand topbar-brand'},el('img',{src:logo,alt:'Trade Avata'}),el('span',{class:'name'},'Trade Avata ',el('b',{},'Chart')));bar.append(brand);
     const scroll=el('div',{class:'topbar-scroll'});bar.append(scroll);
@@ -80,6 +86,11 @@ class TradeAvataApp{
     const acc=this.state.connection.account;
     const accLabel=this.state.connection.status==='live'?(acc?.name||acc?.number||'Broker Account'):'Sign in / Broker';
     scroll.append(el('button',{class:'tb-btn account-btn',onclick:()=>this.openLogin()},el('span',{class:`account-dot ${this.state.connection.status==='live'?'live':''}`}),this.state.connection.status==='live'?`● ${accLabel} ▾`:accLabel));
+    // Restore after the replacement is fully populated, including its full width.
+    scroll.scrollLeft=left;
+    bar.scrollLeft=outerLeft;
+    this.__taTopbarScrollLeft=scroll.scrollLeft;
+    scroll.addEventListener('scroll',()=>{this.__taTopbarScrollLeft=scroll.scrollLeft;},{passive:true});
   }
   renderLeftbar(){
     const left=$('#leftbar');left.innerHTML='';
