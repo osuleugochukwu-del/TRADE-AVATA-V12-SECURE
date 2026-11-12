@@ -1,0 +1,18 @@
+name = "trade-avata-market-gateway-staging"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-11-12"
+workers_dev = true
+
+[[durable_objects.bindings]]
+name = "MARKET_ROOMS"
+class_name = "MarketRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MarketRoom"]
+
+[vars]
+TRADE_AVATA_STAGE = "scaffold"
+# Configure exact staging origins as a comma-separated Worker variable before enabling
+# browser access. Never put cTrader secrets or user tokens in this file.
+TRADE_AVATA_ALLOWED_ORIGINS = ""
